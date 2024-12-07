@@ -66,8 +66,8 @@ export default function JavelinGame() {
             }
 
             let throwLine: number
-            const gravity = 0.2
-            const airResistance = 0.997
+            const gravity = 0.25
+            const airResistance = 0.995
             let bestThrow = 0
             let gameState = 'ready'
             let canvasElement: HTMLElement
@@ -516,7 +516,7 @@ export default function JavelinGame() {
                 javelin.x = athlete.x + 45
                 javelin.y = athlete.y - 35
 
-                const throwSpeed = javelin.power * 0.16
+                const throwSpeed = javelin.power * 0.11;
                 const angleRad = p.radians(-javelin.angle)
                 javelin.velocity.x = throwSpeed * p.cos(angleRad)
                 javelin.velocity.y = throwSpeed * p.sin(angleRad)
