@@ -1,6 +1,6 @@
 // app/games/javelin/page.tsx
-import JavelinGame from '@/src/components/games/javelin/JavelinGame'
+import GameWrapper from '@/src/components/games/javelin/GameWrapper';
 
 export default function JavelinPage() {
-  return <JavelinGame />
+  return <GameWrapper />;
 }
