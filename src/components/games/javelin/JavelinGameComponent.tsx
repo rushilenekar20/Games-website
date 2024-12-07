@@ -371,6 +371,25 @@ export default function JavelinGame() {
                 p.text(`Angle: ${javelin.angle.toFixed(0)}°`, 20, 50)
                 p.text(`Best: ${bestThrow.toFixed(1)}m`, 20, 70)
 
+                // In draw function, after drawing power/angle/best stats
+
+                p.fill('rgba(0,0,0,0.7)');
+                p.rect(10, 75, 200, 60);  // Positioned below the stats
+                p.fill('white');
+                p.textAlign(p.LEFT);
+                p.textSize(14);
+                p.text('How to Play:', 20, 90);
+
+                if (isTouchDevice()) {
+                    p.text('• Touch & pull left for power', 20, 110);
+                    p.text('• Move up/down for angle', 20, 130);
+                } else {
+                    p.text('• SPACE to start running', 20, 110);
+                    p.text('• Hold SPACE for power', 20, 130);
+                    p.text('• UP/DOWN for angle', 20, 150);
+                }
+
+
 
                 if (gameState === 'completed') {
                     p.fill('rgba(0,0,0,0.8)')
