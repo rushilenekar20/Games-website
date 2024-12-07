@@ -70,6 +70,8 @@ export default function JavelinGame() {
             const airResistance = 0.995
             let bestThrow = 0
             let gameState = 'ready'
+            let isNewBest = false;
+            let celebrationStartTime = 0;
             let canvasElement: HTMLElement
 
             let leaderboard: number[] = [];
@@ -204,14 +206,6 @@ export default function JavelinGame() {
                     p.stroke('rgba(255, 255, 255, 0.6)')
                     p.strokeWeight(3)
                     p.noFill()
-
-                    // p.line(touchX - 40, touchY, touchX - 60, touchY)
-                    // p.line(touchX - 60, touchY, touchX - 50, touchY - 10)
-                    // p.text("Power", touchX - 60, touchY - 20)
-
-                    // p.line(touchX, touchY - 30, touchX, touchY - 50)
-                    // p.line(touchX, touchY - 50, touchX - 10, touchY - 40)
-                    // p.text("Angle", touchX + 40, touchY)
                 }
             }
 
@@ -275,7 +269,6 @@ export default function JavelinGame() {
                         p.circle(touchX, touchY, pulseSize)
                     }
                 }
-
 
                 // Draw landing point
                 if (javelin.landingPoint) {
@@ -341,6 +334,8 @@ export default function JavelinGame() {
                         if (javelin.distance > bestThrow && !athlete.hasFouled) {
                             bestThrow = javelin.distance
                             updateUI('bestThrow', bestThrow.toFixed(1))
+                            isNewBest = true;
+                            celebrationStartTime = p.frameCount;
                         }
                         showGameOver(javelin.distance.toFixed(1))
                     }
@@ -369,39 +364,62 @@ export default function JavelinGame() {
                 p.textAlign(p.LEFT)
                 p.text(`Power: ${javelin.power.toFixed(0)}%`, 20, 30)
                 p.text(`Angle: ${javelin.angle.toFixed(0)}°`, 20, 50)
-                p.text(`Best: ${bestThrow.toFixed(1)}m`, 20, 70)
+                // p.text(`Best: ${bestThrow.toFixed(1)}m`, 20, 70)
 
                 // In draw function, after drawing power/angle/best stats
 
                 p.fill('rgba(0,0,0,0.7)');
-                p.rect(10, 75, 200, 60);  // Positioned below the stats
+                p.rect(10, 55, 200, 60);  // Positioned below the stats
                 p.fill('white');
                 p.textAlign(p.LEFT);
                 p.textSize(14);
-                p.text('How to Play:', 20, 90);
+                p.text('How to Play:', 20, 70);
 
                 if (isTouchDevice()) {
-                    p.text('• Touch & pull left for power', 20, 110);
-                    p.text('• Move up/down for angle', 20, 130);
+                    p.text('• Touch & pull left for power', 20, 90);
+                    p.text('• Move up/down for angle', 20, 110);
                 } else {
-                    p.text('• SPACE to start running', 20, 110);
-                    p.text('• Hold SPACE for power', 20, 130);
-                    p.text('• UP/DOWN for angle', 20, 150);
+                    p.text('• SPACE to start running', 20, 90);
+                    p.text('• Hold SPACE for power', 20, 110);
+                    p.text('• UP/DOWN for angle', 20, 130);
                 }
 
-
-
                 if (gameState === 'completed') {
-                    p.fill('rgba(0,0,0,0.8)')
-                    p.rect(0, 0, p.width, p.height)
+                    // Dark overlay
+                    p.fill('rgba(0,0,0,0.8)');
+                    p.rect(0, 0, p.width, p.height);
 
+                    // Calculate center positions
+                    const centerX = p.width / 2;
                     const centerY = p.height / 2;
+                    const baseY = centerY - 60;  // Adjust base position for all text
 
-                    p.fill('white')
-                    p.textAlign(p.CENTER)
-                    p.textSize(24)
-                    p.text('Throw Complete!', p.width / 2, centerY - 40)
-                    p.text(`Distance: ${javelin.distance.toFixed(1)}m`, p.width / 2, centerY)
+                    // New Best celebration (if achieved)
+                    if (isNewBest) {
+                        const pulse = p.sin((p.frameCount - celebrationStartTime) * 0.05) * 0.2 + 0.8;
+                        p.fill('#FFD700');
+                        p.textAlign(p.CENTER);
+                        p.textSize(32 * pulse);
+                        p.text('NEW BEST!', centerX, baseY);
+
+                        // Rotating stars
+                        for (let i = 0; i < 8; i++) {
+                            const angle = ((p.frameCount - celebrationStartTime) * 0.02) + (i * p.PI / 4);
+                            const x = centerX + p.cos(angle) * 50;
+                            const y = baseY + p.sin(angle) * 20;
+                            p.fill('#FFD700');
+                            p.noStroke();
+                            const starSize = 5 + p.sin((p.frameCount - celebrationStartTime) * 0.1 + i) * 2;
+                            p.circle(x, y, starSize);
+                        }
+                    }
+
+                    // Throw Complete message
+                    p.fill('white');
+                    p.textAlign(p.CENTER);
+                    p.textSize(24);
+                    p.text('Throw Complete!', centerX, baseY + 40);
+                    p.text(`Distance: ${javelin.distance.toFixed(1)}m`, centerX, baseY + 80);
 
                     const tryAgainButton = document.getElementById('tryAgainButton');
                     if (!tryAgainButton) {
@@ -410,9 +428,9 @@ export default function JavelinGame() {
                         button.innerHTML = 'Try Again';
                         button.style.cssText = `
                             position: fixed;
-                            top: 50%;
                             left: 50%;
-                            transform: translate(-50%, calc(-50% + 80px));
+                            top: ${baseY + 140}px;
+                            transform: translateX(-50%);
                             background: #6633ff;
                             color: white;
                             padding: 12px 24px;
@@ -427,10 +445,10 @@ export default function JavelinGame() {
                             touch-action: manipulation;
                         `;
 
-                        // Handle both click and touch
                         const handleRestart = () => {
+                            isNewBest = false;  // Reset the new best flag only when restarting
                             resetGame();
-                            button.blur(); // Remove focus state after click
+                            button.blur();
                         };
 
                         button.addEventListener('click', handleRestart);
