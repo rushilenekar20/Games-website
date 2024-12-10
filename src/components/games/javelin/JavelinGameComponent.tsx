@@ -1,4 +1,4 @@
-// src/components/games/javelin/JavelinGame.tsx
+// // src/components/games/javelin/JavelinGame.tsx
 'use client'
 
 import { useEffect, useRef } from 'react'
@@ -66,8 +66,9 @@ export default function JavelinGame() {
             }
 
             let throwLine: number
-            const gravity = 0.25
-            const airResistance = 0.995
+            // const gravity = 0.22
+            // const airResistance = 0.995
+            // const javelinThrowPower = 0.19
             let bestThrow = 0
             let gameState = 'ready'
             let isNewBest = false;
@@ -75,27 +76,10 @@ export default function JavelinGame() {
             let canvasElement: HTMLElement
 
             let leaderboard: number[] = [];
-
-            function updateLeaderboard(distance: number) {
-                leaderboard.push(distance);
-                leaderboard.sort((a, b) => b - a);
-                leaderboard = leaderboard.slice(0, 5);
-            }
-
-            function drawLeaderboard() {
-                p.fill('rgba(0,0,0,0.7)');
-                p.rect(p.width - 150, 10, 140, 140);
-                p.fill('white');
-                p.textAlign(p.LEFT);
-                p.textSize(16);
-                p.text('Top Throws:', p.width - 140, 35);
-                leaderboard.forEach((score, index) => {
-                    p.text(`${index + 1}. ${score.toFixed(1)}m`, p.width - 140, 60 + index * 20);
-                });
-            }
-
-            function isTouchDevice() {
-                return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            let physics = {
+                gravity: 0,
+                airResistance: 0,  // Air resistance can remain constant
+                javelinThrowPower: 0
             }
 
             p.setup = () => {
@@ -104,110 +88,65 @@ export default function JavelinGame() {
                 const canvas = p.createCanvas(canvasWidth, canvasHeight);
                 canvasElement = canvas.elt // Store canvas element
                 throwLine = canvasWidth * 0.25;
+                physics = calculatePhysicsConstants(canvasWidth);
 
                 window.addEventListener('resize', () => {
                     const newWidth = window.innerWidth > 1200 ? 1200 : window.innerWidth;
                     const newHeight = window.innerHeight > 700 ? 700 : window.innerHeight;
                     p.resizeCanvas(newWidth, newHeight);
                     throwLine = newWidth * 0.25;
+                    physics = calculatePhysicsConstants(newWidth);
                 });
             }
 
+            function calculatePhysicsConstants(canvasWidth: number) {
+                const baseWidth = 1200; // Reference width for largest screen
+                const minWidth = 320;   // Reference for smallest typical mobile screen
 
+                // Normalize the current width between 0 and 1
+                // where 0 = smallest screen and 1 = largest screen
+                const normalizedWidth = (canvasWidth - minWidth) / (baseWidth - minWidth);
 
-            // Add keyboard controls
-            p.keyPressed = () => {
-                if (!isTouchDevice()) {
-                    if (p.keyCode === 32 && gameState === 'ready') { // Spacebar
-                        gameState = 'running';
-                        athlete.isRunning = true;
-                    }
-                    if (p.keyCode === 13 && !athlete.hasThrown && gameState === 'running') { // Enter
-                        throwJavelin();
-                    }
-                }
+                // Base values calibrated for 95M throw at 45° with 100% power
+                const baseGravity = 0.22;
+                const baseThrowPower = 0.141;
+
+                // Calculate gravity (increases for smaller screens)
+                // Smaller screens need higher gravity to prevent over-throwing
+                const gravityScale = 1 + (1 - normalizedWidth) * 0.4; // 40% max increase for small screens
+                const gravity = baseGravity * gravityScale;
+
+                // Calculate throw power (decreases for smaller screens)
+                // Smaller screens need lower throw power to maintain consistent distance
+                const throwPowerScale = 0.7 + (normalizedWidth * 0.3); // 30% variation range
+                const javelinThrowPower = baseThrowPower * throwPowerScale;
+
+                // Air resistance remains constant as it's a multiplier
+                const airResistance = 0.995;
+
+                // Theoretical maximum distance calculation for verification
+                // Using simplified projectile motion with air resistance
+                const power = 100;
+                const angle = 45;
+                const initialVelocity = power * javelinThrowPower;
+                const time = 2 * initialVelocity * Math.sin(angle * Math.PI / 180) / gravity;
+                const distance = initialVelocity * Math.cos(angle * Math.PI / 180) * time *
+                    (1 - Math.pow(airResistance, time)) / (1 - airResistance);
+
+                console.log('Calculated Physics Values:', {
+                    screenWidth: canvasWidth,
+                    gravity,
+                    javelinThrowPower,
+                    theoreticalMaxDistance: distance
+                });
+
+                return {
+                    gravity,
+                    airResistance,
+                    javelinThrowPower
+                };
             }
 
-
-
-            function resetGame() {
-                athlete = {
-                    x: 20,
-                    y: p.height * 0.85,
-                    speed: 3,
-                    isRunning: false,
-                    hasThrown: false,
-                    hasFouled: false
-                }
-
-                javelin = {
-                    x: 0,
-                    y: 0,
-                    angle: 45,
-                    power: 0,
-                    velocity: { x: 0, y: 0 },
-                    isThrown: false,
-                    distance: 0,
-                    landed: false,
-                    trajectory: [],
-                    landingPoint: null,
-                    touchStart: null,
-                    currentTouch: null
-                }
-
-                gameState = 'ready'
-                const gameOver = document.querySelector('.game-over') as HTMLElement
-                if (gameOver) gameOver.style.display = 'none'
-                updateUI('power', '0')
-                updateUI('angle', '45')
-            }
-
-
-            function drawAthlete(x: number, y: number) {
-                p.push()
-                p.stroke(0)
-                p.fill('#FFB6C1')
-
-                // Body
-                p.rect(x, y - 40, 20, 30)
-                p.circle(x + 10, y - 50, 20)
-
-                // Arms and legs animation
-                const time = p.millis() / 100
-                const legOffset = p.sin(time) * 10
-
-                if (!athlete.hasThrown) {
-                    p.line(x + 10, y - 35, x + 30, y - 45)
-                    p.line(x + 30, y - 45, x + 45, y - 35)
-                } else {
-                    p.line(x + 10, y - 35, x + 25, y - 25)
-                }
-
-                p.line(x + 10, y - 10, x + 10 + legOffset, y + 10)
-                p.line(x + 10, y - 10, x + 10 - legOffset, y + 10)
-                p.pop()
-            }
-
-            function drawStartIndicator() {
-                if (gameState === 'ready') {
-                    const touchX = athlete.x + 45
-                    const touchY = athlete.y - 35
-                    const pulseSize = 20 + p.sin(p.frameCount * 0.1) * 10
-
-                    p.noStroke()
-                    p.fill('rgba(255, 255, 255, 0.8)')
-                    p.circle(touchX, touchY, pulseSize)
-
-                    p.textAlign(p.CENTER)
-                    p.textSize(18)
-                    p.fill('white')
-                    p.text("Touch here to start", touchX, touchY - 40)
-
-                    p.stroke('rgba(255, 255, 255, 0.6)')
-                    p.strokeWeight(3)
-                    p.noFill()
-                }
-            }
 
             p.draw = () => {
                 p.background('#87CEEB')
@@ -284,10 +223,10 @@ export default function JavelinGame() {
 
                 // Handle javelin in flight
                 if (javelin.isThrown && !javelin.landed) {
-                    javelin.x += javelin.velocity.x
-                    javelin.y += javelin.velocity.y
-                    javelin.velocity.y += gravity
-                    javelin.velocity.x *= airResistance
+                    javelin.x += javelin.velocity.x;
+                    javelin.y += javelin.velocity.y;
+                    javelin.velocity.y += physics.gravity;
+                    javelin.velocity.x *= physics.airResistance;
 
                     javelin.trajectory.push({ x: javelin.x, y: javelin.y })
                     if (javelin.trajectory.length > 30) {
@@ -465,18 +404,135 @@ export default function JavelinGame() {
                 drawLeaderboard()
             }
 
+            function isTouchDevice() {
+                return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            }
+
+            // Add keyboard controls
             p.keyPressed = () => {
                 if (!isTouchDevice()) {
-                    if (p.keyCode === 32 && gameState === 'ready') {
+                    if (p.keyCode === 32 && gameState === 'ready') { // Spacebar
                         gameState = 'running';
                         athlete.isRunning = true;
                     }
-                    if (p.keyCode === 13 && !athlete.hasThrown && gameState === 'running') {
+                    if (p.keyCode === 13 && !athlete.hasThrown && gameState === 'running') { // Enter
                         throwJavelin();
                     }
                 }
             }
 
+
+            function drawAthlete(x: number, y: number) {
+                p.push()
+                p.stroke(0)
+                p.fill('#FFB6C1')
+
+                // Body
+                p.rect(x, y - 40, 20, 30)
+                p.circle(x + 10, y - 50, 20)
+
+                // Arms and legs animation
+                const time = p.millis() / 100
+                const legOffset = p.sin(time) * 10
+
+                if (!athlete.hasThrown) {
+                    p.line(x + 10, y - 35, x + 30, y - 45)
+                    p.line(x + 30, y - 45, x + 45, y - 35)
+                } else {
+                    p.line(x + 10, y - 35, x + 25, y - 25)
+                }
+
+                p.line(x + 10, y - 10, x + 10 + legOffset, y + 10)
+                p.line(x + 10, y - 10, x + 10 - legOffset, y + 10)
+                p.pop()
+            }
+
+            function drawStartIndicator() {
+                if (gameState === 'ready') {
+                    const touchX = athlete.x + 45
+                    const touchY = athlete.y - 35
+                    const pulseSize = 20 + p.sin(p.frameCount * 0.1) * 10
+
+                    p.noStroke()
+                    p.fill('rgba(255, 255, 255, 0.8)')
+                    p.circle(touchX, touchY, pulseSize)
+
+                    p.textAlign(p.CENTER)
+                    p.textSize(18)
+                    p.fill('white')
+                    p.text("Touch here to start", touchX, touchY - 40)
+
+                    p.stroke('rgba(255, 255, 255, 0.6)')
+                    p.strokeWeight(3)
+                    p.noFill()
+                }
+            }
+
+
+            function throwJavelin() {
+                athlete.hasThrown = true
+                javelin.isThrown = true
+                gameState = 'throwing'
+                javelin.trajectory = []
+
+                javelin.x = athlete.x + 45
+                javelin.y = athlete.y - 35
+
+                const throwSpeed = javelin.power * physics.javelinThrowPower;
+                const angleRad = p.radians(-javelin.angle);
+                javelin.velocity.x = throwSpeed * p.cos(angleRad);
+                javelin.velocity.y = throwSpeed * p.sin(angleRad);
+            }
+
+            function updateLeaderboard(distance: number) {
+                leaderboard.push(distance);
+                leaderboard.sort((a, b) => b - a);
+                leaderboard = leaderboard.slice(0, 5);
+            }
+
+            function drawLeaderboard() {
+                p.fill('rgba(0,0,0,0.7)');
+                p.rect(p.width - 150, 10, 140, 140);
+                p.fill('white');
+                p.textAlign(p.LEFT);
+                p.textSize(16);
+                p.text('Top Throws:', p.width - 140, 35);
+                leaderboard.forEach((score, index) => {
+                    p.text(`${index + 1}. ${score.toFixed(1)}m`, p.width - 140, 60 + index * 20);
+                });
+            }
+
+            function resetGame() {
+                athlete = {
+                    x: 20,
+                    y: p.height * 0.85,
+                    speed: 3,
+                    isRunning: false,
+                    hasThrown: false,
+                    hasFouled: false
+                }
+
+                javelin = {
+                    x: 0,
+                    y: 0,
+                    angle: 45,
+                    power: 0,
+                    velocity: { x: 0, y: 0 },
+                    isThrown: false,
+                    distance: 0,
+                    landed: false,
+                    trajectory: [],
+                    landingPoint: null,
+                    touchStart: null,
+                    currentTouch: null
+                }
+
+                gameState = 'ready'
+                const gameOver = document.querySelector('.game-over') as HTMLElement
+                if (gameOver) gameOver.style.display = 'none'
+                updateUI('power', '0')
+                updateUI('angle', '45')
+            }
 
             function handleTouchStart(event: TouchEvent) {
                 if (gameState === 'ready' && event.touches?.length > 0) {
@@ -525,20 +581,7 @@ export default function JavelinGame() {
                 return false
             }
 
-            function throwJavelin() {
-                athlete.hasThrown = true
-                javelin.isThrown = true
-                gameState = 'throwing'
-                javelin.trajectory = []
 
-                javelin.x = athlete.x + 45
-                javelin.y = athlete.y - 35
-
-                const throwSpeed = javelin.power * 0.11;
-                const angleRad = p.radians(-javelin.angle)
-                javelin.velocity.x = throwSpeed * p.cos(angleRad)
-                javelin.velocity.y = throwSpeed * p.sin(angleRad)
-            }
 
             function updateUI(elementId: string, value: string | number) {
                 const element = document.getElementById(elementId)
@@ -575,3 +618,183 @@ export default function JavelinGame() {
         </div>
     )
 }
+
+
+// JavelinTest.tsx
+// import { useEffect, useRef } from 'react';
+// import p5 from 'p5';
+
+// export default function JavelinTest() {
+//     const gameContainerRef = useRef<HTMLDivElement>(null);
+
+//     useEffect(() => {
+//         if (!gameContainerRef.current) return;
+
+//         const sketch = (p: p5) => {
+//             const canvasWidth = window.innerWidth > 1200 ? 1200 : window.innerWidth;
+//             const canvasHeight = window.innerHeight > 700 ? 700 : window.innerHeight;
+//             let throwLine: number;
+//             let hasThrown = false;
+//             let testComplete = false;
+//             let testResults: { distance: number; maxHeight: number; flightTime: number } | null = null;
+
+//             // Calculate physics based on screen size
+//             const baseGravity = 0.22;
+//             const baseThrowPower = 0.151;
+//             const normalizedWidth = (canvasWidth - 320) / (1200 - 320);
+//             const gravityScale = 1 + (1 - normalizedWidth) * 0.4;
+//             const throwPowerScale = 0.7 + (normalizedWidth * 0.3);
+            
+//             const physics = {
+//                 gravity: baseGravity * gravityScale,
+//                 airResistance: 0.995,
+//                 javelinThrowPower: baseThrowPower * throwPowerScale
+//             };
+
+//             let javelin = {
+//                 x: 0,
+//                 y: 0,
+//                 velocity: { x: 0, y: 0 },
+//                 trajectory: [] as { x: number; y: number }[],
+//                 startTime: 0
+//             };
+
+//             p.setup = () => {
+//                 p.createCanvas(canvasWidth, canvasHeight);
+//                 throwLine = canvasWidth * 0.25;
+                
+//                 // Display device info
+//                 console.log('Test Environment:', {
+//                     screenWidth: canvasWidth,
+//                     screenHeight: canvasHeight,
+//                     gravity: physics.gravity,
+//                     throwPower: physics.javelinThrowPower,
+//                     airResistance: physics.airResistance
+//                 });
+
+//                 // Start test throw automatically
+//                 startTestThrow();
+//             };
+
+//             function startTestThrow() {
+//                 hasThrown = true;
+//                 testComplete = false;
+//                 const power = 100; // 100% power
+//                 const angle = 45; // 45 degrees
+//                 const angleRad = p.radians(-angle);
+
+//                 javelin = {
+//                     x: throwLine,
+//                     y: p.height * 0.85 - 35,
+//                     velocity: {
+//                         x: power * physics.javelinThrowPower * p.cos(angleRad),
+//                         y: power * physics.javelinThrowPower * p.sin(angleRad)
+//                     },
+//                     trajectory: [],
+//                     startTime: p.millis()
+//                 };
+//             }
+
+//             p.draw = () => {
+//                 p.background('#87CEEB');
+                
+//                 // Draw ground
+//                 const groundY = p.height * 0.85;
+//                 p.fill('#90EE90');
+//                 p.rect(0, groundY, p.width, p.height - groundY);
+
+//                 // Draw throw line
+//                 p.stroke('red');
+//                 p.line(throwLine, 0, throwLine, p.height);
+
+//                 // Draw measurement markers
+//                 for (let i = 0; i <= 100; i += 10) {
+//                     const x = throwLine + (i * (p.width - throwLine) / 100);
+//                     p.stroke('white');
+//                     p.line(x, groundY - 5, x, groundY + 5);
+//                     p.noStroke();
+//                     p.fill('black');
+//                     p.text(i + 'm', x, groundY + 20);
+//                 }
+
+//                 if (hasThrown && !testComplete) {
+//                     // Update javelin position
+//                     javelin.x += javelin.velocity.x;
+//                     javelin.y += javelin.velocity.y;
+//                     javelin.velocity.y += physics.gravity;
+//                     javelin.velocity.x *= physics.airResistance;
+
+//                     // Record trajectory
+//                     javelin.trajectory.push({ x: javelin.x, y: javelin.y });
+
+//                     // Draw trajectory
+//                     p.stroke('rgba(255,255,255,0.3)');
+//                     p.noFill();
+//                     p.beginShape();
+//                     javelin.trajectory.forEach(point => p.vertex(point.x, point.y));
+//                     p.endShape();
+
+//                     // Draw javelin
+//                     p.push();
+//                     p.translate(javelin.x, javelin.y);
+//                     const angle = p.atan2(javelin.velocity.y, javelin.velocity.x);
+//                     p.rotate(angle);
+//                     p.fill('yellow');
+//                     p.rect(-5, -2, 45, 4);
+//                     p.fill('red');
+//                     p.triangle(40, -6, 40, 6, 50, 0);
+//                     p.pop();
+
+//                     // Check if landed
+//                     if (javelin.y >= groundY) {
+//                         testComplete = true;
+//                         const distance = ((javelin.x - throwLine) / (p.width - throwLine)) * 100;
+//                         const maxHeight = Math.min(...javelin.trajectory.map(p => p.y));
+//                         const flightTime = (p.millis() - javelin.startTime) / 1000;
+
+//                         testResults = {
+//                             distance: distance,
+//                             maxHeight: p.height - maxHeight,
+//                             flightTime: flightTime
+//                         };
+
+//                         console.log('Test Results:', {
+//                             distance: distance.toFixed(2) + 'm',
+//                             maxHeight: (maxHeight / p.height * 100).toFixed(2) + 'm',
+//                             flightTime: flightTime.toFixed(2) + 's',
+//                             trajectoryPoints: javelin.trajectory.length
+//                         });
+//                     }
+//                 }
+
+//                 // Draw test information
+//                 p.fill('black');
+//                 p.noStroke();
+//                 p.textSize(16);
+//                 p.textAlign(p.LEFT);
+//                 p.text(`Screen Width: ${canvasWidth}px`, 10, 30);
+//                 p.text(`Physics Settings:`, 10, 60);
+//                 p.text(`Gravity: ${physics.gravity.toFixed(3)}`, 20, 80);
+//                 p.text(`Throw Power: ${physics.javelinThrowPower.toFixed(3)}`, 20, 100);
+
+//                 if (testResults) {
+//                     p.text(`Results:`, 10, 130);
+//                     p.text(`Distance: ${testResults.distance.toFixed(2)}m`, 20, 150);
+//                     p.text(`Max Height: ${(testResults.maxHeight / p.height * 100).toFixed(2)}m`, 20, 170);
+//                     p.text(`Flight Time: ${testResults.flightTime.toFixed(2)}s`, 20, 190);
+//                 }
+//             };
+//         };
+
+//         const p5Instance = new p5(sketch, gameContainerRef.current);
+//         return () => p5Instance.remove();
+//     }, []);
+
+//     return (
+//         <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
+//             <div className="relative w-full h-full md:max-w-[1200px] md:max-h-[700px]">
+//                 <div ref={gameContainerRef} className="w-full h-full"></div>
+//             </div>
+//         </div>
+//     );
+// }
