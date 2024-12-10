@@ -174,6 +174,28 @@ export default function JavelinGame() {
                 p.line(throwLine, 0, throwLine, p.height)
                 drawStartIndicator()
 
+                if (!isTouchDevice() && gameState === 'running' && !athlete.hasThrown) {
+                    if (p.keyIsDown(32)) { // SPACE key held
+                        if (javelin.touchStart && javelin.currentTouch) {
+                            javelin.currentTouch.x -= 2; // Gradually increase pull-back
+                            const pullDistance = javelin.touchStart.x - javelin.currentTouch.x;
+                            javelin.power = p.constrain(p.map(pullDistance, 0, 100, 0, 100), 0, 100);
+                            updateUI('power', Math.floor(javelin.power));
+                        }
+                    }
+                    
+                    // Direct angle control for keyboard
+                    if (p.keyIsDown(p.UP_ARROW)) {
+                        javelin.angle = p.constrain(javelin.angle + 1, 0, 80);
+                        updateUI('angle', Math.floor(javelin.angle));
+                    }
+                    
+                    if (p.keyIsDown(p.DOWN_ARROW)) {
+                        javelin.angle = p.constrain(javelin.angle - 1, 0, 80);
+                        updateUI('angle', Math.floor(javelin.angle));
+                    }
+                }
+
                 if (gameState === 'running' || gameState === 'throwing') {
                     if (!athlete.hasThrown) {
                         athlete.x += athlete.speed
@@ -275,6 +297,8 @@ export default function JavelinGame() {
                             updateUI('bestThrow', bestThrow.toFixed(1))
                             isNewBest = true;
                             celebrationStartTime = p.frameCount;
+                        } else {
+                            isNewBest = false;
                         }
                         showGameOver(javelin.distance.toFixed(1))
                     }
@@ -307,20 +331,25 @@ export default function JavelinGame() {
 
                 // In draw function, after drawing power/angle/best stats
 
-                p.fill('rgba(0,0,0,0.7)');
-                p.rect(10, 55, 200, 60);  // Positioned below the stats
-                p.fill('white');
-                p.textAlign(p.LEFT);
-                p.textSize(14);
-                p.text('How to Play:', 20, 70);
-
                 if (isTouchDevice()) {
+                    p.fill('rgba(0,0,0,0.7)');
+                    p.rect(10, 55, 200, 60);  // Positioned below the stats
+                    p.fill('white');
+                    p.textAlign(p.LEFT);
+                    p.textSize(14);
+                    p.text('How to Play:', 20, 70);
                     p.text('• Touch & pull left for power', 20, 90);
                     p.text('• Move up/down for angle', 20, 110);
                 } else {
-                    p.text('• SPACE to start running', 20, 90);
-                    p.text('• Hold SPACE for power', 20, 110);
-                    p.text('• UP/DOWN for angle', 20, 130);
+                    p.fill('rgba(0,0,0,0.7)');
+                    p.rect(10, 55, 200, 80);  // Positioned below the stats
+                    p.fill('white');
+                    p.textAlign(p.LEFT);
+                    p.textSize(14);
+                    p.text('How to Play:', 20, 70);
+                    p.text('• Hold SPACE for power', 20, 90);
+                    p.text('• UP/DOWN for angle', 20, 110);
+                    p.text('• ENTER for shoot', 20, 130);
                 }
 
                 if (gameState === 'completed') {
@@ -359,31 +388,14 @@ export default function JavelinGame() {
                     p.textSize(24);
                     p.text('Throw Complete!', centerX, baseY + 40);
                     p.text(`Distance: ${javelin.distance.toFixed(1)}m`, centerX, baseY + 80);
-
+                    p.textSize(16);
+                    
                     const tryAgainButton = document.getElementById('tryAgainButton');
                     if (!tryAgainButton) {
                         const button = document.createElement('button');
                         button.id = 'tryAgainButton';
-                        button.innerHTML = 'Try Again';
-                        button.style.cssText = `
-                            position: fixed;
-                            left: 50%;
-                            top: ${baseY + 140}px;
-                            transform: translateX(-50%);
-                            background: #6633ff;
-                            color: white;
-                            padding: 12px 24px;
-                            border: none;
-                            border-radius: 8px;
-                            cursor: pointer;
-                            font-size: 18px;
-                            z-index: 1000;
-                            width: 150px;
-                            text-align: center;
-                            -webkit-tap-highlight-color: transparent;
-                            touch-action: manipulation;
-                        `;
-
+                        button.innerHTML = 'Tap anywhere to retry';
+                        button.style.cssText = 'position: fixed; left: 50%; top: ' + (baseY + 140) + 'px; transform: translateX(-50%); background: #6633ff; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; z-index: 1000; white-space: nowrap; text-align: center; -webkit-tap-highlight-color: transparent; touch-action: manipulation;';
                         const handleRestart = () => {
                             isNewBest = false;  // Reset the new best flag only when restarting
                             resetGame();
@@ -409,18 +421,38 @@ export default function JavelinGame() {
             }
 
             // Add keyboard controls
+            // Add this function at the start of your sketch
+            function getRandomInitialAngle() {
+                const angles = [30, 45, 60, 80];
+                return angles[Math.floor(Math.random() * angles.length)];
+            }
+
+            // Update the keyPressed function
             p.keyPressed = () => {
                 if (!isTouchDevice()) {
-                    if (p.keyCode === 32 && gameState === 'ready') { // Spacebar
-                        gameState = 'running';
-                        athlete.isRunning = true;
+                    if (p.keyCode === 32) { // Spacebar
+                        if (gameState === 'ready') {
+                            gameState = 'running';
+                            athlete.isRunning = true;
+                            // Initialize touch positions and set random angle
+                            javelin.angle = getRandomInitialAngle();
+                            updateUI('angle', Math.floor(javelin.angle));
+                            
+                            javelin.touchStart = { 
+                                x: athlete.x + 45, 
+                                y: athlete.y - 35 
+                            };
+                            javelin.currentTouch = { 
+                                x: athlete.x + 45, 
+                                y: athlete.y - 35 
+                            };
+                        }
                     }
                     if (p.keyCode === 13 && !athlete.hasThrown && gameState === 'running') { // Enter
                         throwJavelin();
                     }
                 }
             }
-
 
             function drawAthlete(x: number, y: number) {
                 p.push()
@@ -515,7 +547,7 @@ export default function JavelinGame() {
                 javelin = {
                     x: 0,
                     y: 0,
-                    angle: 45,
+                    angle: isTouchDevice() ? 45 : getRandomInitialAngle(), // Set random angle only for keyboard users,
                     power: 0,
                     velocity: { x: 0, y: 0 },
                     isThrown: false,
@@ -553,25 +585,25 @@ export default function JavelinGame() {
             }
 
             function handleTouchMove(event: TouchEvent) {
-                event.preventDefault()
-
+                event.preventDefault();
+            
                 if (gameState === 'running' && !athlete.hasThrown && javelin.touchStart && event.touches && event.touches.length > 0) {
-                    const touch = event.touches[0]
-                    const touchX = touch.clientX - canvasElement.getBoundingClientRect().left
-                    const touchY = touch.clientY - canvasElement.getBoundingClientRect().top
+                    const touch = event.touches[0];
+                    const touchX = touch.clientX - canvasElement.getBoundingClientRect().left;
+                    const touchY = touch.clientY - canvasElement.getBoundingClientRect().top;
 
-                    javelin.currentTouch = { x: touchX, y: touchY }
+                    javelin.currentTouch = { x: touchX, y: touchY };
 
-                    const pullDistance = javelin.touchStart.x - touchX
-                    javelin.power = p.constrain(p.map(pullDistance, 0, 100, 0, 100), 0, 100)
+                    const pullDistance = javelin.touchStart.x - touchX;
+                    javelin.power = p.constrain(p.map(pullDistance, 0, 100, 0, 100), 0, 100);
 
-                    const verticalDistance = javelin.touchStart.y - touchY
-                    javelin.angle = p.constrain(p.map(verticalDistance, 50, -50, 0, 80), 0, 80)
+                    const verticalDistance = javelin.touchStart.y - touchY;
+                    javelin.angle = p.constrain(p.map(verticalDistance, 50, -50, 0, 80), 0, 80);
 
-                    updateUI('power', Math.floor(javelin.power))
-                    updateUI('angle', Math.floor(javelin.angle))
+                    updateUI('power', Math.floor(javelin.power));
+                    updateUI('angle', Math.floor(javelin.angle));
                 }
-                return false
+                return false;
             }
 
             function handleTouchEnd() {
@@ -580,7 +612,6 @@ export default function JavelinGame() {
                 }
                 return false
             }
-
 
 
             function updateUI(elementId: string, value: string | number) {
@@ -597,8 +628,27 @@ export default function JavelinGame() {
                 }
             }
 
+            function handleRestartInput() {
+                if (gameState === 'completed') {
+                    resetGame();
+                    return true;
+                }
+                return false;
+            }
+
+
             // Setup p5.js event listeners
-            p.touchStarted = () => handleTouchStart(window.event as TouchEvent)
+            p.touchStarted = () => {
+                const event = window.event as TouchEvent;
+                if (handleRestartInput()) {
+                    return false;
+                }
+                return handleTouchStart(event);
+            }
+            // Add mousePressed for non-touch devices
+            p.mousePressed = () => {
+                return handleRestartInput();
+            }
             p.touchMoved = () => handleTouchMove(window.event as TouchEvent)
             p.touchEnded = () => handleTouchEnd()
         }
