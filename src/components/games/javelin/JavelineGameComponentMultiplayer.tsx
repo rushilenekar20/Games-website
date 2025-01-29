@@ -333,60 +333,94 @@ export default function JavelinGameMultiplayer() {
                 }
 
                 restartButton = p.createButton('Restart Game');
-                restartButton.position(p.width / 2 - 50, p.height / 2 + 100);
+                // Adjust position and size for mobile devices
+                const buttonWidth = Math.min(p.width * 0.7, 300); // 70% of width, max 300px
+                const buttonHeight = 60; // Larger height for easier touch
+                restartButton.position(
+                    p.width / 2 - buttonWidth / 2, 
+                    p.height / 2 + 100
+                );
+                // Mobile-friendly styling with larger touch target
                 restartButton.style('background-color', 'green');
                 restartButton.style('color', 'white');
                 restartButton.style('border', 'none');
-                restartButton.style('padding', '10px 20px');
-                restartButton.style('border-radius', '5px');
-                restartButton.style('font-size', '16px');
+                restartButton.style('padding', '15px 20px');
+                restartButton.style('border-radius', '10px');
+                restartButton.style('font-size', '20px');
+                restartButton.style('width', `${buttonWidth}px`);
+                restartButton.style('height', `${buttonHeight}px`);
+                restartButton.style('display', 'flex');
+                restartButton.style('align-items', 'center');
+                restartButton.style('justify-content', 'center');
                 restartButton.style('cursor', 'pointer');
-                restartButton.style('z-index', '100');
+                restartButton.style('z-index', '1000');
+                restartButton.style('-webkit-tap-highlight-color', 'transparent');
 
+                // Multiple event listeners for cross-device compatibility
                 restartButton.mousePressed(() => {
-                    // Reset game state for a new round
-                    rounds = 0;
-                    playerData.yourRound = 0;
-                    playerData.oppRound = 0;
+                    handleRestart(p);
+                });
 
-                    // Clear previous rounds history if needed
-                    previousRounds = [];
+                // Add touch event listener directly to the HTML element
+                const buttonElement = restartButton.elt as HTMLButtonElement;
+                buttonElement.addEventListener('touchend', (e: TouchEvent) => {
+                    e.preventDefault(); // Prevent default touch behavior
+                    handleRestart(p);
+                }, { passive: false });
 
-                    // Reset game elements
-                    athlete = {
-                        x: 20,
-                        y: p.height * 0.85,
-                        speed: 3,
-                        isRunning: false,
-                        hasThrown: false,
-                        hasFouled: false
-                    };
+                // Additional touch interaction improvements
+                buttonElement.addEventListener('touchstart', (e: TouchEvent) => {
+                    e.preventDefault(); // Prevent default touch behavior
+                    buttonElement.style.transform = 'scale(0.95)'; // Visual feedback
+                }, { passive: false });
 
-                    javelin = {
-                        x: 0,
-                        y: 0,
-                        angle: 45,
-                        power: 0,
-                        velocity: { x: 0, y: 0 },
-                        isThrown: false,
-                        distance: 0,
-                        landed: false,
-                        trajectory: [],
-                        landingPoint: null,
-                        touchStart: null,
-                        currentTouch: null
-                    };
-
-                    gameState = 'ready';
-
-                    // Remove restart button
-                    if (restartButton) {
-                        restartButton.remove();
-                        restartButton = null;
-                    }
+                buttonElement.addEventListener('touchcancel', () => {
+                    buttonElement.style.transform = 'scale(1)'; // Reset scale
                 });
 
                 return restartButton;
+            }
+
+            function handleRestart(p: p5) {
+                // Reset game state for a new round
+                rounds = 0;
+                playerData.yourRound = 0;
+                playerData.oppRound = 0;
+
+                // Clear previous rounds history if needed
+                previousRounds = [];
+
+                // Reset game elements
+                athlete = {
+                    x: 20,
+                    y: p.height * 0.85,
+                    speed: 3,
+                    isRunning: false,
+                    hasThrown: false,
+                    hasFouled: false
+                };
+
+                javelin = {
+                    x: 0,
+                    y: 0,
+                    angle: 45,
+                    power: 0,
+                    velocity: { x: 0, y: 0 },
+                    isThrown: false,
+                    distance: 0,
+                    landed: false,
+                    trajectory: [],
+                    landingPoint: null,
+                    touchStart: null,
+                    currentTouch: null
+                };
+
+                gameState = 'ready';
+                // Remove restart button
+                if (restartButton) {
+                    restartButton.remove();
+                    restartButton = null;
+                }
             }
 
             function calculatePhysicsConstants(canvasWidth: number) {
@@ -749,7 +783,7 @@ export default function JavelinGameMultiplayer() {
                     // Calculate center positions
                     const centerX = p.width / 2;
                     const centerY = p.height / 2;
-                    const baseY = centerY - 60;  // Adjust base position for all text
+                    // const baseY = centerY - 60;  // Adjust base position for all text
 
                     const won = playerData.yourRound == playerData.oppRound
                         ? "TIE"
@@ -760,7 +794,7 @@ export default function JavelinGameMultiplayer() {
                     p.fill('white');
                     p.textAlign(p.CENTER);
                     p.textSize(64);
-                    p.text(`🏆 WINNER: ${won.toUpperCase()} 🏆`, centerX, baseY + 40);
+                    p.text(`🏆 WINNER: ${won.toUpperCase()} 🏆`, centerX, centerY);
                     p.textSize(16);
 
                     if (!restartButton) {
