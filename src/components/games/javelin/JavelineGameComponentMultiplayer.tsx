@@ -16,13 +16,13 @@ let joined = false
 let currentUserTurn ="";
 let winner = "";
 let rounds = 0;
-let numRounds = 5;
+const numRounds = 5;
 let shown = false;
 let thrown = false;
 let hasClickedRoomId = false;
-let previousRounds: { yourThrow: number, oppThrow: number }[] = [];
+const previousRounds: { yourThrow: number, oppThrow: number }[] = [];
 
-let playerData = {
+const playerData = {
     you : "",
     yourId : -1,
     opponent : "",
@@ -56,6 +56,7 @@ interface Javelin {
 }
 
 const SOCKET_URL = 'https://javelinethrowbackend.onrender.com';
+// const SOCKET_URL = 'http://localhost:3001';
 
 // const socket = io('http://localhost:3001', {
 const socket = io(SOCKET_URL, {
@@ -67,12 +68,12 @@ const socket = io(SOCKET_URL, {
 
 export default function JavelinGameMultiplayer() {
     const gameContainerRef = useRef<HTMLDivElement>(null)
-    let count = 0;
+    // const count = 0;
     const [roomId, setRoomId] = useState('');
     const [username, setUsername] = useState('');
     const [usernameReady, setUsernameReady] = useState(false);
     const [isSessionJoined, setIsSessionJoined] = useState(false);
-    let [isCurrentUserTurn, setIsCurrentUserTurn] = useState(false);
+    const [isCurrentUserTurn, setIsCurrentUserTurn] = useState(false);
 
     if (roomId && usernameReady && !joined) {
         socket.emit('session:join', roomId, username);
@@ -119,8 +120,8 @@ export default function JavelinGameMultiplayer() {
         socket.on('session:playerJoined', (sessionData) => {
             if( usernameReady && Object.keys(sessionData).length === 3 && playerData.yourId == -1){
                 currentUserTurn = sessionData.currentTurn
-                let user1 = sessionData.user1
-                let user2 = sessionData.user2
+                const user1 = sessionData.user1
+                const user2 = sessionData.user2
 
                 playerData.yourId = user1 === username ? 1 : 2
                 playerData.you = user1 === username ? user1 : user2
@@ -300,12 +301,12 @@ export default function JavelinGameMultiplayer() {
 
                 // Theoretical maximum distance calculation for verification
                 // Using simplified projectile motion with air resistance
-                const power = 100;
-                const angle = 45;
-                const initialVelocity = power * javelinThrowPower;
-                const time = 2 * initialVelocity * Math.sin(angle * Math.PI / 180) / gravity;
-                const distance = initialVelocity * Math.cos(angle * Math.PI / 180) * time *
-                    (1 - Math.pow(airResistance, time)) / (1 - airResistance);
+                // const power = 100;
+                // const angle = 45;
+                // const initialVelocity = power * javelinThrowPower;
+                // const time = 2 * initialVelocity * Math.sin(angle * Math.PI / 180) / gravity;
+                // const distance = initialVelocity * Math.cos(angle * Math.PI / 180) * time *
+                //     (1 - Math.pow(airResistance, time)) / (1 - airResistance);
 
                 // console.log('Calculated Physics Values:', {
                 //     screenWidth: canvasWidth,
@@ -739,7 +740,7 @@ export default function JavelinGameMultiplayer() {
                 javelin.velocity.y = throwSpeed * p.sin(angleRad);
             }
 
-            function updateLeaderboard(yourThrow: number, oppThrow: number ) {
+            // function updateLeaderboard(yourThrow: number, oppThrow: number ) {
                 // leaderboard.push(distance);
                 // leaderboard.sort((a, b) => b - a);
                 // leaderboard = leaderboard.slice(0, 5);
@@ -748,7 +749,7 @@ export default function JavelinGameMultiplayer() {
                 // if (previousRounds.length > 5) {
                 //     previousRounds.shift();
                 // }
-            }
+            // }
 
             // function drawLeaderboard() {
             //     p.fill('rgba(0,0,0,0.7)');
