@@ -15,12 +15,13 @@ declare global {
 let joined = false
 let currentUserTurn ="";
 let winner = "";
-let rounds = 0;
-const numRounds = 5;
 let shown = false;
 let thrown = false;
 let hasClickedRoomId = false;
-const previousRounds: { yourThrow: number, oppThrow: number }[] = [];
+let rounds = 0;
+const numRounds = 5; // Total number of rounds to play
+let previousRounds: Array<{ winner: string, yourThrow: number, oppThrow: number }> = [];
+
 
 const playerData = {
     you : "",
@@ -176,7 +177,12 @@ export default function JavelinGameMultiplayer() {
                     else 
                         winner = "TIE"
 
-                    previousRounds.push({ yourThrow, oppThrow });
+                    previousRounds.push({
+                        winner: winner,
+                        yourThrow: yourThrow,
+                        oppThrow: oppThrow
+                    });
+
                     // Limit to last 5 rounds
                     if (previousRounds.length > 5) {
                         previousRounds.shift();
@@ -214,6 +220,7 @@ export default function JavelinGameMultiplayer() {
 
     useEffect(() => {
         if (!gameContainerRef.current) return
+        let restartButton: p5.Element | null = null;
 
         if (roomId && isSessionJoined && gameContainerRef.current) {
             const sketch = (p: p5) => {
@@ -250,6 +257,7 @@ export default function JavelinGameMultiplayer() {
             let isNewBest = false;
             let celebrationStartTime = 0;
             let canvasElement: HTMLElement
+            let fullScreenButton: p5.Element;
 
             let physics = {
                 gravity: 0,
@@ -272,6 +280,113 @@ export default function JavelinGameMultiplayer() {
                     throwLine = newWidth * 0.25;
                     physics = calculatePhysicsConstants(newWidth);
                 });
+
+                // Create full-screen button
+                fullScreenButton = p.createButton('🔲'); // Fullscreen square emoji
+                fullScreenButton.position(p.width - 50, 10);
+                fullScreenButton.style('background-color', 'rgba(0,0,0,0.5)');
+                fullScreenButton.style('color', 'white');
+                fullScreenButton.style('border', 'none');
+                fullScreenButton.style('width', '40px');
+                fullScreenButton.style('height', '40px');
+                fullScreenButton.style('border-radius', '4px');
+                fullScreenButton.style('display', 'flex');
+                fullScreenButton.style('align-items', 'center');
+                fullScreenButton.style('justify-content', 'center');
+                fullScreenButton.style('z-index', '100');
+                fullScreenButton.style('font-size', '20px');
+                fullScreenButton.style('cursor', 'pointer');
+                fullScreenButton.style('touch-action', 'manipulation');
+
+                // Use both mouse and touch events
+                fullScreenButton.mousePressed(handleFullScreen);
+
+                // Add touch event listener directly to the button's HTML element
+                const buttonEl = fullScreenButton.elt as HTMLButtonElement;
+                buttonEl.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); // Prevent default touch behavior
+                    handleFullScreen();
+                }, { passive: false });
+
+            }
+
+            function handleFullScreen() {
+                const docElm = document.documentElement;
+
+                if (!document.fullscreenElement) {
+                    if (docElm.requestFullscreen) {
+                        docElm.requestFullscreen().catch(err => {
+                            console.error('Full-screen request error:', err);
+                        });
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    }
+                }
+            }
+
+            function createRestartButton(p: p5) {
+                // Remove any existing restart button first
+                if (restartButton) {
+                    restartButton.remove();
+                }
+
+                restartButton = p.createButton('Restart Game');
+                restartButton.position(p.width / 2 - 50, p.height / 2 + 100);
+                restartButton.style('background-color', 'green');
+                restartButton.style('color', 'white');
+                restartButton.style('border', 'none');
+                restartButton.style('padding', '10px 20px');
+                restartButton.style('border-radius', '5px');
+                restartButton.style('font-size', '16px');
+                restartButton.style('cursor', 'pointer');
+                restartButton.style('z-index', '100');
+
+                restartButton.mousePressed(() => {
+                    // Reset game state for a new round
+                    rounds = 0;
+                    playerData.yourRound = 0;
+                    playerData.oppRound = 0;
+
+                    // Clear previous rounds history if needed
+                    previousRounds = [];
+
+                    // Reset game elements
+                    athlete = {
+                        x: 20,
+                        y: p.height * 0.85,
+                        speed: 3,
+                        isRunning: false,
+                        hasThrown: false,
+                        hasFouled: false
+                    };
+
+                    javelin = {
+                        x: 0,
+                        y: 0,
+                        angle: 45,
+                        power: 0,
+                        velocity: { x: 0, y: 0 },
+                        isThrown: false,
+                        distance: 0,
+                        landed: false,
+                        trajectory: [],
+                        landingPoint: null,
+                        touchStart: null,
+                        currentTouch: null
+                    };
+
+                    gameState = 'ready';
+
+                    // Remove restart button
+                    if (restartButton) {
+                        restartButton.remove();
+                        restartButton = null;
+                    }
+                });
+
+                return restartButton;
             }
 
             function calculatePhysicsConstants(canvasWidth: number) {
@@ -355,6 +470,10 @@ export default function JavelinGameMultiplayer() {
 
                 const groundY = p.height * 0.85
                 athlete.y = groundY
+
+                if (fullScreenButton) {
+                    fullScreenButton.position(p.width - 50, 10);
+                }
 
                 // Draw ground
                 p.fill('#90EE90')
@@ -631,12 +750,27 @@ export default function JavelinGameMultiplayer() {
                     const centerX = p.width / 2;
                     const centerY = p.height / 2;
                     const baseY = centerY - 60;  // Adjust base position for all text
-                    const won = playerData.yourRound == playerData.oppRound ? "TIE" : (playerData.yourRound > playerData.oppRound ? playerData.you: playerData.opponent )
+
+                    const won = playerData.yourRound == playerData.oppRound
+                        ? "TIE"
+                        : (playerData.yourRound > playerData.oppRound
+                            ? playerData.you
+                            : playerData.opponent);
+                    
                     p.fill('white');
                     p.textAlign(p.CENTER);
                     p.textSize(64);
                     p.text(`🏆 WINNER: ${won.toUpperCase()} 🏆`, centerX, baseY + 40);
                     p.textSize(16);
+
+                    if (!restartButton) {
+                        createRestartButton(p);
+                    }
+                } else {
+                    if (restartButton) {
+                        restartButton.remove();
+                        restartButton = null;
+                    }
                 }
             }
 
