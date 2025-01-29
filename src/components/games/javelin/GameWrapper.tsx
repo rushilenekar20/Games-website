@@ -10,11 +10,42 @@ const JavelinGame = dynamic(
     ssr: false,
     loading: () => (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
+        <div className="text-white text-xl flex flex-col items-center justify-center">
+          <div className="animate-pulse">
+            <svg 
+              className="w-16 h-16 text-white mb-4" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24" 
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 01-4.176-3.97L9.34 3.83a1.778 1.778 0 00-3.403.596l.812 4.455V9.8a1.5 1.5 0 01-1.405 1.107h-.81a1.5 1.5 0 01-1.405-1.107L1.59 5.627A1.5 1.5 0 00.14 4.52V3a1 1 0 011-1h16a1 1 0 011 1v7.5a1 1 0 01-1 1h-2.43a1 1 0 00-.957.725l-.347 1.388z"
+              />
+            </svg>
+          </div>
+          <span className="animate-pulse">Loading Game...</span>
+        </div>
+      </div>
+    )
+  }
+);
+
+const JavelinGameMultiplayer = dynamic(
+  () => import('./JavelineGameComponentMultiplayer'),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-900">
         <div className="text-white text-xl">Loading Game...</div>
       </div>
     )
   }
 );
+
 
 const LandscapePrompt = () => (
     <div className="fixed inset-0 bg-slate-900 text-white min-h-screen min-w-screen flex flex-col items-center justify-center p-4">
@@ -34,6 +65,7 @@ const LandscapePrompt = () => (
 
 export default function GameWrapper() {
     const [isValidOrientation, setIsValidOrientation] = useState(true);
+    const [gameMode, setGameMode] = useState<'single' | 'multi' | null>(null);
   
     useEffect(() => {
       const checkOrientation = () => {
@@ -57,8 +89,37 @@ export default function GameWrapper() {
     }, []);
   
     return (
-      <div className="relative h-[100vh]">
-        {isValidOrientation ? <JavelinGame /> : <LandscapePrompt />}
+      <div className="fixed inset-0 w-full h-full min-h-screen min-w-screen bg-slate-900 text-white overflow-hidden flex items-center justify-center">
+        {!isValidOrientation ? (
+          <LandscapePrompt />
+        ) : gameMode === null ? (
+          <div className="w-full h-full flex flex-col items-center justify-center space-y-8 px-4">
+            <h2 className="text-4xl font-bold mb-12 text-center">Choose Your Game Mode</h2>
+            <div className="flex justify-center space-x-8 w-full max-w-4xl">
+              <div 
+                onClick={() => setGameMode('single')}
+                className="cursor-pointer bg-gray-800 hover:bg-gray-700 p-6 md:p-8 rounded-2xl transition-all duration-300 transform hover:scale-105 text-center w-48 md:w-64"
+              >
+                <div className="text-6xl mb-4">🏹</div>
+                <h3 className="text-xl md:text-2xl font-semibold">Single Player</h3>
+                <p className="text-gray-400 mt-2 text-sm md:text-base">Practice your javelin throw</p>
+              </div>
+              
+              <div 
+                onClick={() => setGameMode('multi')}
+                className="cursor-pointer bg-gray-800 hover:bg-gray-700 p-6 md:p-8 rounded-2xl transition-all duration-300 transform hover:scale-105 text-center w-48 md:w-64"
+              >
+                <div className="text-6xl mb-4">👥</div>
+                <h3 className="text-xl md:text-2xl font-semibold">Multiplayer</h3>
+                <p className="text-gray-400 mt-2 text-sm md:text-base">Challenge a friend</p>
+              </div>
+            </div>
+          </div>
+        ) : gameMode === 'single' ? (
+          <JavelinGame />
+        ) : (
+          <JavelinGameMultiplayer />
+        )}
       </div>
-    );
+     );
   }
