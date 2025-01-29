@@ -39,6 +39,26 @@ export default function JavelinGame() {
 
     useEffect(() => {
         if (!gameContainerRef.current) return
+        const handleFirstInteraction = () => {
+            const docElm = document.documentElement;
+            
+            // Check if not already in full-screen
+            if (!document.fullscreenElement) {
+                if (docElm.requestFullscreen) {
+                    docElm.requestFullscreen().catch(err => {
+                        console.log(err);
+                    });
+                }
+            }
+    
+            // Remove event listener after first interaction
+            document.removeEventListener('touchstart', handleFirstInteraction);
+            document.removeEventListener('mousedown', handleFirstInteraction);
+        };
+    
+        // Add event listeners for first interaction
+        document.addEventListener('touchstart', handleFirstInteraction);
+        document.addEventListener('mousedown', handleFirstInteraction);
 
         const sketch = (p: p5) => {
             let athlete: Athlete = {
